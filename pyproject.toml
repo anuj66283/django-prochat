@@ -10,7 +10,7 @@ where = ["src"]
 
 [project]
 name = "django-prochat"
-version = "1.0.0"
+version = "1.0.1"
 authors = [
   { name = "Anuj Bhattarai", email = "anujbhattarai66283@gmail.com" },
 ]
