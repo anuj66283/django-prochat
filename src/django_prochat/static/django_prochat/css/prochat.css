@@ -1,0 +1,17 @@
+.prochat-widget {
+  display: block;
+  width: 100%;
+}
+
+.prochat-widget textarea {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.prochat-preview {
+  display: block;
+  margin-top: 16px;
+  padding: 12px;
+  border: 1px solid #ddd;
+  background: #fafafa;
+}

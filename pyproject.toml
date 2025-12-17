@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[project]
+name = "django-prochat"
+version = "1.0.0"
+authors = [
+  { name = "Anuj Bhattarai", email = "anujbhattarai66283@gmail.com" },
+]
+description = "A small package to render response of Prochat in Django admin panel."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "django>=5.0.0",
+]
+license = { text = "MIT" }
+keywords = ["django", "widget"]
+
+[project.urls]
+"Homepage" = "https://github.com/anuj66283/django-prochat"
+"Repository" = "https://github.com/anuj66283/django-prochat"

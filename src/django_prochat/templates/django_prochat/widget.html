@@ -1,0 +1,36 @@
+{% load static %}
+
+<div class="prochat-widget">
+  <textarea
+    name="{{ widget.name }}"
+    {% include "django/forms/widgets/attrs.html" %}
+  >
+  {{ widget.value|default_if_none:"" }}
+  </textarea>
+
+  {{ widget.value|default_if_none:"{}"|json_script:"prochat-data" }}
+
+  <div class="prochat-preview">
+    <div id="prochat-root"></div>
+  </div>
+</div>
+
+<script>
+  const jsonString = JSON.parse(
+    document.getElementById("prochat-data").textContent
+  );
+
+  const parsed = JSON.parse(jsonString);
+  const jsonData = parsed.json;
+
+  if (!jsonData) {
+    document.getElementById("prochat-root").innerText =
+      "Cannot find json key";
+  } else {
+    ProChat({
+      json: jsonData,
+      onActionListener: (action) => console.log(action),
+      debug: true,
+    });
+  }
+</script>
