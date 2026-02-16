@@ -2,16 +2,16 @@
 
   <div style="display: flex; gap: 20px; margin-bottom: 20px;">
 
-    <div style="flex: 1;">
-      <h4 style="margin: 0 0 10px 0;">Raw Data (Editable)</h4>
+    <div style="flex: 1; max-width: 50%;">
+      <h4 style="margin: 0 0 10px 0;">Raw Data</h4>
       <textarea class="prochat-raw-input" name="{{ widget.name }}" {% include "django/forms/widgets/attrs.html" %}
-        style="height: 250px; resize: vertical; width: 100%; font-family: monospace; padding: 10px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; overflow-y: auto; display: block;">{{ widget.value|default_if_none:"" }}</textarea>
+        style="height: 250px; resize: vertical; width: 100%; font-family: monospace; padding: 10px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; overflow-y: auto; display: block; white-space: pre;">{{ widget.value|default_if_none:"" }}</textarea>
     </div>
 
-    <div style="flex: 1;">
-      <h4 style="margin: 0 0 10px 0;">Collapsible JSON Viewer</h4>
+    <div style="flex: 1; max-width: 50%;">
+      <h4 style="margin: 0 0 10px 0;">JSON Viewer</h4>
       <div class="prochat-json-viewer"
-        style="background: #f8f8f8; padding: 10px; overflow-y: auto; border: 1px solid #ccc; font-family: monospace; border-radius: 4px; box-sizing: border-box;">
+        style="background: #f8f8f8; padding: 10px; overflow-y: auto; border: 1px solid #ccc; font-family: monospace; border-radius: 4px; box-sizing: border-box; overflow-wrap: break-word;">
       </div>
     </div>
 
@@ -45,14 +45,37 @@
       });
       resizeObserver.observe(rawInput);
     }
+
     function createCollapsibleTree(key, value) {
-      const isObj = value !== null && typeof value === 'object';
+      let actualValue = value;
+      let isStringifiedJson = false;
+
+      if (typeof value === 'string') {
+        const trimmed = value.trim();
+        if ((trimmed.startsWith('{') && trimmed.endsWith('}')) ||
+          (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
+          try {
+            actualValue = JSON.parse(trimmed);
+            isStringifiedJson = true;
+          } catch (e) {
+          }
+        }
+      }
+
+      const isObj = actualValue !== null && typeof actualValue === 'object';
 
       if (!isObj) {
         const div = document.createElement('div');
         div.style.marginLeft = "20px";
-        div.style.padding = "2px 0";
-        div.innerHTML = `<strong style="color: #c82829;">${key}:</strong> <span style="color: #718c00;">${JSON.stringify(value)}</span>`;
+        div.style.padding = "4px 0";
+
+        let displayValue = typeof actualValue === 'string' ? JSON.stringify(actualValue) : String(actualValue);
+
+        if (typeof actualValue === 'string' && actualValue.includes('\\n')) {
+          displayValue = `\`\n${actualValue}\n\``;
+        }
+
+        div.innerHTML = `<strong style="color: #c82829;">${key}:</strong> <span style="color: #718c00; white-space: pre-wrap; word-break: break-all;">${displayValue}</span>`;
         return div;
       }
 
@@ -64,11 +87,13 @@
       summary.style.fontWeight = "bold";
       summary.style.color = "#4271ae";
       summary.style.padding = "2px 0";
-      summary.innerHTML = `${key} ${Array.isArray(value) ? '[...]' : '{...}'}`;
+
+      const typeLabel = isStringifiedJson ? ' <em style="color:#8e908c; font-weight:normal; font-size: 0.9em;">(Parsed String)</em>' : '';
+      summary.innerHTML = `${key}${typeLabel} ${Array.isArray(actualValue) ? '[...]' : '{...}'}`;
 
       details.appendChild(summary);
 
-      for (const [k, v] of Object.entries(value)) {
+      for (const [k, v] of Object.entries(actualValue)) {
         details.appendChild(createCollapsibleTree(k, v));
       }
 
@@ -79,10 +104,6 @@
       const rawData = JSON.parse(scriptTag.textContent);
       const parsed = typeof rawData === "string" ? JSON.parse(rawData) : rawData;
 
-      if (rawInput) {
-        rawInput.value = JSON.stringify(parsed, null, 4);
-      }
-
       if (jsonViewer) {
         const rootTree = createCollapsibleTree('Root', parsed);
         rootTree.open = true;
@@ -92,7 +113,7 @@
       const jsonData = parsed?.json;
 
       if (!jsonData) {
-        rootDiv.innerHTML = "<span style='color:red;'>Cannot find 'json' key in data.</span>";
+        rootDiv.innerHTML = "<span style='color:red;'>Cannot find 'json' key in data, or it is empty.</span>";
       } else if (typeof ProChat === 'undefined') {
         rootDiv.innerText = "ProChat library is missing";
         console.error("ProChat is not defined.");
