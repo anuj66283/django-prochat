@@ -1,2 +1,3 @@
 recursive-include src/django_prochat/static *
 recursive-include src/django_prochat/templates *
+include image.png

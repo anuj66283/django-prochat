@@ -1,36 +1,134 @@
-{% load static %}
+<div class="prochat-widget" style="width: 100%;">
 
-<div class="prochat-widget">
-  <textarea
-    name="{{ widget.name }}"
-    {% include "django/forms/widgets/attrs.html" %}
-  >
-  {{ widget.value|default_if_none:"" }}
-  </textarea>
+  <div style="display: flex; gap: 20px; margin-bottom: 20px;">
+
+    <div style="flex: 1; max-width: 50%;">
+      <h4 style="margin: 0 0 10px 0;">Raw Data</h4>
+      <textarea class="prochat-raw-input" name="{{ widget.name }}" {% include "django/forms/widgets/attrs.html" %}
+        style="height: 250px; resize: vertical; width: 100%; font-family: monospace; padding: 10px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; overflow-y: auto; display: block; white-space: pre;">{{ widget.value|default_if_none:"" }}</textarea>
+    </div>
+
+    <div style="flex: 1; max-width: 50%;">
+      <h4 style="margin: 0 0 10px 0;">JSON Viewer</h4>
+      <div class="prochat-json-viewer"
+        style="background: #f8f8f8; padding: 10px; overflow-y: auto; border: 1px solid #ccc; font-family: monospace; border-radius: 4px; box-sizing: border-box; overflow-wrap: break-word;">
+      </div>
+    </div>
+
+  </div>
+
+  <div style="width: 100%;">
+    <h4 style="margin: 0 0 10px 0;">ProChat Preview</h4>
+    <div class="prochat-preview"
+      style="border: 1px solid #ccc; border-radius: 4px; padding: 10px; background: #fff; min-height: 200px;">
+      <div id="prochat-root"></div>
+    </div>
+  </div>
 
   {{ widget.value|default_if_none:"{}"|json_script:"prochat-data" }}
 
-  <div class="prochat-preview">
-    <div id="prochat-root"></div>
-  </div>
 </div>
 
 <script>
-  const jsonString = JSON.parse(
-    document.getElementById("prochat-data").textContent
-  );
+  (function () {
+    const scriptTag = document.getElementById("prochat-data");
+    const rootDiv = document.getElementById("prochat-root");
 
-  const parsed = JSON.parse(jsonString);
-  const jsonData = parsed.json;
+    const rawInput = document.querySelector(`textarea[name="{{ widget.name }}"]`);
+    const jsonViewer = document.querySelector('.prochat-json-viewer');
 
-  if (!jsonData) {
-    document.getElementById("prochat-root").innerText =
-      "Cannot find json key";
-  } else {
-    ProChat({
-      json: jsonData,
-      onActionListener: (action) => console.log(action),
-      debug: true,
-    });
-  }
+    if (!scriptTag || !rootDiv) return;
+
+    if (rawInput && jsonViewer) {
+      const resizeObserver = new ResizeObserver(() => {
+        jsonViewer.style.height = rawInput.offsetHeight + 'px';
+      });
+      resizeObserver.observe(rawInput);
+    }
+
+    function createCollapsibleTree(key, value) {
+      let actualValue = value;
+      let isStringifiedJson = false;
+
+      if (typeof value === 'string') {
+        const trimmed = value.trim();
+        if ((trimmed.startsWith('{') && trimmed.endsWith('}')) ||
+          (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
+          try {
+            actualValue = JSON.parse(trimmed);
+            isStringifiedJson = true;
+          } catch (e) {
+          }
+        }
+      }
+
+      const isObj = actualValue !== null && typeof actualValue === 'object';
+
+      if (!isObj) {
+        const div = document.createElement('div');
+        div.style.marginLeft = "20px";
+        div.style.padding = "4px 0";
+
+        let displayValue = typeof actualValue === 'string' ? JSON.stringify(actualValue) : String(actualValue);
+
+        if (typeof actualValue === 'string' && actualValue.includes('\\n')) {
+          displayValue = `\`\n${actualValue}\n\``;
+        }
+
+        div.innerHTML = `<strong style="color: #c82829;">${key}:</strong> <span style="color: #718c00; white-space: pre-wrap; word-break: break-all;">${displayValue}</span>`;
+        return div;
+      }
+
+      const details = document.createElement('details');
+      details.style.marginLeft = "20px";
+
+      const summary = document.createElement('summary');
+      summary.style.cursor = "pointer";
+      summary.style.fontWeight = "bold";
+      summary.style.color = "#4271ae";
+      summary.style.padding = "2px 0";
+
+      const typeLabel = isStringifiedJson ? ' <em style="color:#8e908c; font-weight:normal; font-size: 0.9em;">(Parsed String)</em>' : '';
+      summary.innerHTML = `${key}${typeLabel} ${Array.isArray(actualValue) ? '[...]' : '{...}'}`;
+
+      details.appendChild(summary);
+
+      for (const [k, v] of Object.entries(actualValue)) {
+        details.appendChild(createCollapsibleTree(k, v));
+      }
+
+      return details;
+    }
+
+    try {
+      const rawData = JSON.parse(scriptTag.textContent);
+      const parsed = typeof rawData === "string" ? JSON.parse(rawData) : rawData;
+
+      if (jsonViewer) {
+        const rootTree = createCollapsibleTree('Root', parsed);
+        rootTree.open = true;
+        jsonViewer.appendChild(rootTree);
+      }
+
+      const jsonData = parsed?.json;
+
+      if (!jsonData) {
+        rootDiv.innerHTML = "<span style='color:red;'>Cannot find 'json' key in data, or it is empty.</span>";
+      } else if (typeof ProChat === 'undefined') {
+        rootDiv.innerText = "ProChat library is missing";
+        console.error("ProChat is not defined.");
+      } else {
+        ProChat({
+          json: jsonData,
+          onActionListener: (action) => console.log(action),
+          debug: true,
+          width: "100%",
+        });
+      }
+    } catch (error) {
+      console.error("Error parsing ProChat widget data:", error);
+      rootDiv.innerHTML = `<span style='color:red;'><b>Invalid JSON Format:</b> ${error.message}</span>`;
+      if (jsonViewer) jsonViewer.innerHTML = `<em style="color:red;">Cannot build viewer due to syntax error. Please fix the raw JSON.</em>`;
+    }
+  })();
 </script>
