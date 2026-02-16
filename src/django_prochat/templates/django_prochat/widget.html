@@ -1,13 +1,9 @@
-{% load static %}
-
 <div class="prochat-widget">
-  <textarea
-    name="{{ widget.name }}"
-    {% include "django/forms/widgets/attrs.html" %}
-  >
-  {{ widget.value|default_if_none:"" }}
-  </textarea>
+  {# 1. Kept the textarea on one line so you don't get weird spaces in your data #}
+  <textarea name="{{ widget.name }}" {% include "django/forms/widgets/attrs.html"
+    %}>{{ widget.value|default_if_none:"" }}</textarea>
 
+  {# 2. Reverted to your required hardcoded IDs #}
   {{ widget.value|default_if_none:"{}"|json_script:"prochat-data" }}
 
   <div class="prochat-preview">
@@ -16,21 +12,33 @@
 </div>
 
 <script>
-  const jsonString = JSON.parse(
-    document.getElementById("prochat-data").textContent
-  );
+  (function () {
+    const scriptTag = document.getElementById("prochat-data");
+    const rootDiv = document.getElementById("prochat-root");
 
-  const parsed = JSON.parse(jsonString);
-  const jsonData = parsed.json;
+    if (!scriptTag || !rootDiv) return;
 
-  if (!jsonData) {
-    document.getElementById("prochat-root").innerText =
-      "Cannot find json key";
-  } else {
-    ProChat({
-      json: jsonData,
-      onActionListener: (action) => console.log(action),
-      debug: true,
-    });
-  }
+    try {
+      const rawData = JSON.parse(scriptTag.textContent);
+      const parsed = typeof rawData === "string" ? JSON.parse(rawData) : rawData;
+      const jsonData = parsed?.json;
+
+      if (!jsonData) {
+        rootDiv.innerText = "Cannot find json key";
+      } else if (typeof ProChat === 'undefined') {
+        rootDiv.innerText = "ProChat library is missing";
+        console.error("ProChat is not defined.");
+      } else {
+        ProChat({
+          json: jsonData,
+          onActionListener: (action) => console.log(action),
+          debug: true,
+          width: "100%",
+        });
+      }
+    } catch (error) {
+      console.error("Error parsing ProChat widget data:", error);
+      rootDiv.innerText = "Error loading chat data";
+    }
+  })();
 </script>
